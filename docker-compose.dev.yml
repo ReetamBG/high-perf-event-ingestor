@@ -1,0 +1,25 @@
+services:
+  ingestion-service:
+    container_name: ingestion-service
+    build:
+      context: ./ingestion-service
+      dockerfile: Dockerfile.dev
+    ports:
+      - 8080:8080
+    volumes:
+      - ./ingestion-service:/app
+      - /ingestion-service/tmp
+    # depends_on:
+    #   - s3-storage
+    image: ingestion-service # just adding this to have a clean image name
+
+
+  # s3-storage:
+  #   container_name: s3-storage
+  #   image: chrislusf/seaweedfs
+  #   ports:
+  #     - 8333:8333 # s3 endpoint
+  #     - 8888:8888 # web ui
+  #   env_file:
+  #     - path: .env.dev
+  #       required: true

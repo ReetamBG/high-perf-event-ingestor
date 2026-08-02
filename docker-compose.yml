@@ -1,0 +1,14 @@
+services:
+  ingestion-service:
+    build:
+      context: ./ingestion-service
+      dockerfile: Dockerfile
+    ports:
+      - 8080:8080
+    restart: "always"
+
+  s3-storage:
+    image: zenko/cloudserver:latest
+    container_name: cloudserver-s3-storage
+    ports:
+      - 8000:8000

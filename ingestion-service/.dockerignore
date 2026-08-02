@@ -1,0 +1,41 @@
+# Git history and configurations
+.git
+.gitignore
+.gitattributes
+
+# Docker configurations
+Dockerfile*
+docker-compose*
+
+# Local environment variables and secrets
+.env
+*.env
+.env.*
+
+# Local Go binaries and test builds
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# Go test coverage and benchmarks
+*.out
+*.prof
+
+# IDEs and Text Editors
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*~
+#
+
+# Temp files from Air
+tmp/
