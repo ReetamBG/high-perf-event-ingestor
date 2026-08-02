@@ -23,7 +23,7 @@ func main() {
 
 	h := app.Mount()
 	if err := app.Run(h); err != nil {
-		slog.Error("Error while starting server: %s", err)
+		slog.Error("Error while starting server", "error", err)
 		os.Exit(1)
 	}
 }
