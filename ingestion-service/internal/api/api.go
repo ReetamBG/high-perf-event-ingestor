@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ReetamBG/high-perf-event-ingestor/internal/events"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -22,13 +23,16 @@ func (app *Application) Mount() http.Handler {
 	mux.Use(middleware.ClientIPFromRemoteAddr) // get the request IP
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer) // recover from crashes
-
 	mux.Use(middleware.Timeout(60 * time.Second))
 
 	mux.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("All good"))
 	})
+
+	eventsService := events.NewService()
+	eventsHandler := events.NewHandler(eventsService)
+	mux.Post("/events/ingest", eventsHandler.Ingest)
 
 	return mux
 }
