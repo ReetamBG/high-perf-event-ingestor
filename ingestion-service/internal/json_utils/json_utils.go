@@ -1,4 +1,4 @@
-package json_util
+package json_utils
 
 import (
 	"encoding/json"
@@ -19,6 +19,6 @@ func Write(w http.ResponseWriter, statusCode int, content any) error {
 	return err
 }
 
-func ReadBody(r *http.Request, dest *any) error {
+func ReadBody(r *http.Request, dest any) error {
 	return json.NewDecoder(r.Body).Decode(dest)
 }

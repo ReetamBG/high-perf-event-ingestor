@@ -6,13 +6,18 @@ import (
 	"time"
 
 	"github.com/ReetamBG/high-perf-event-ingestor/internal/events"
+	"github.com/ReetamBG/high-perf-event-ingestor/internal/kafka_utils"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
+type Config struct {
+	Addr string
+}
+
 type Application struct {
-	Conifg Config
-	DB     DBConfig
+	AppConifg   Config
+	KafkaConfig kafka_utils.KafkaConfig
 }
 
 func (app *Application) Mount() http.Handler {
@@ -30,7 +35,8 @@ func (app *Application) Mount() http.Handler {
 		w.Write([]byte("All good"))
 	})
 
-	eventsService := events.NewService()
+	kafkaWriter := kafka_utils.NewWriter(app.KafkaConfig)
+	eventsService := events.NewService(*kafkaWriter)
 	eventsHandler := events.NewHandler(eventsService)
 	mux.Post("/events/ingest", eventsHandler.Ingest)
 
@@ -39,20 +45,13 @@ func (app *Application) Mount() http.Handler {
 
 func (app *Application) Run(h http.Handler) error {
 	s := http.Server{
-		Addr:         app.Conifg.Addr,
+		Addr:         app.AppConifg.Addr,
 		Handler:      h,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  time.Minute,
 	}
 
-	log.Printf("Server running on port: %s\n", app.Conifg.Addr)
+	log.Printf("Server running on port: %s\n", app.AppConifg.Addr)
 	return s.ListenAndServe()
-}
-
-type Config struct {
-	Addr string
-}
-
-type DBConfig struct {
 }
