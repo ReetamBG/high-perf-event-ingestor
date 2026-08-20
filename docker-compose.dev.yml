@@ -12,8 +12,7 @@ services:
     volumes:
       - ./ingestion-service:/app
       - /app/tmp # for temporary files from golang air
-    env_file:
-      - .env.dev
+    env_file: .env.dev
     depends_on:
       # - s3-storage
       - redpanda-0
@@ -69,12 +68,27 @@ services:
     depends_on:
       - redpanda-0
 
-  # s3-storage:
-  #   container_name: s3-storage
-  #   image: chrislusf/seaweedfs
-  #   ports:
-  #     - 8333:8333 # s3 endpoint
-  #     - 8888:8888 # web ui
-  #   env_file:
-  #     - path: .env.dev
-  #       required: true
+  sink-connector:
+    container_name: redpanda-connect
+    image: redpandadata/connect
+    volumes:
+      - ./redpanda-connect-config.yaml:/connect.yaml
+    command: ["run", "/connect.yaml"]
+    ports:
+      - 4195:4195  # health check http port
+    env_file:
+      - path: .env.dev
+        required: true
+    depends_on:
+      - redpanda-0
+      - s3-storage
+
+  s3-storage:
+    container_name: s3-storage
+    image: chrislusf/seaweedfs
+    ports:
+      - 8333:8333 # s3 endpoint
+      - 8888:8888 # web ui
+    env_file:
+      - path: .env.dev
+        required: true

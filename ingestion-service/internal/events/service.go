@@ -29,7 +29,7 @@ func (s *svc) Ingest(ctx context.Context, data any) error {
 			data,
 		}
 
-		topics := []string{"t1"}
+		topics := []string{"events"}
 
 		s.kafkaWriter.Write(topics, values)
 	}

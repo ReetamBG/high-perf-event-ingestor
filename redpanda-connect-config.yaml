@@ -1,0 +1,15 @@
+input:
+  kafka:
+    addresses: ["redpanda-0:9092"]
+    topics: ["events"]
+    consumer_group: "s3-storage"   # this refers to the consumer group id given to the pipe input, not the sink (s3 here)
+output:
+  aws_s3:
+    endpoint: "http://s3-storage:8333"
+    force_path_style_urls: true
+    bucket: my-bucket
+    path: '${!uuid_v4()}.json'      # random name to each message
+    credentials:
+      id: "admin"
+      secret: "secret"
+    region: "us-east-1"  # dummy region for compatibility
