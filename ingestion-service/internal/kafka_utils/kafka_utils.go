@@ -26,6 +26,11 @@ func NewWriter(config KafkaConfig) *Writer {
 		AllowAutoTopicCreation: config.AutoTopicCreation,
 		MaxAttempts:            config.MaxAttempts,
 		WriteTimeout:           config.WriteTimeout,
+
+		// async writes
+		Async:        true,
+		BatchSize:    100,
+		BatchTimeout: time.Second * 2,
 	}
 
 	return &Writer{

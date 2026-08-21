@@ -14,7 +14,7 @@ type Service interface {
 }
 
 type svc struct {
-	kafkaWriter kafka_utils.Writer
+	kafkaWriter *kafka_utils.Writer
 }
 
 func (s *svc) Ingest(ctx context.Context, data any) error {
@@ -37,7 +37,7 @@ func (s *svc) Ingest(ctx context.Context, data any) error {
 	return nil
 }
 
-func NewService(kafkaWriter kafka_utils.Writer) Service {
+func NewService(kafkaWriter *kafka_utils.Writer) Service {
 	return &svc{
 		kafkaWriter: kafkaWriter,
 	}

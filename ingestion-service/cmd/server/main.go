@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"time"
 
 	"github.com/ReetamBG/high-perf-event-ingestor/internal/api"
+	"github.com/ReetamBG/high-perf-event-ingestor/internal/env"
 	"github.com/ReetamBG/high-perf-event-ingestor/internal/kafka_utils"
 )
 
@@ -15,11 +17,12 @@ func main() {
 	slog.SetDefault(logger)
 
 	ac := api.Config{
-		Addr: ":8080",
+		Addr: fmt.Sprintf(":%s", env.GetString("PORT", "8080")),
 	}
 
+	defaultBrokers := []string{"redpanda-0:9092"}
 	kc := kafka_utils.KafkaConfig{
-		Brokers:           []string{"redpanda-0:9092"},
+		Brokers:           env.GetSlice("BROKERS", defaultBrokers),
 		AutoTopicCreation: true,
 		MaxAttempts:       3,
 		WriteTimeout:      10 * time.Second,

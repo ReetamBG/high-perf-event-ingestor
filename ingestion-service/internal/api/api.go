@@ -36,7 +36,7 @@ func (app *Application) Mount() http.Handler {
 	})
 
 	kafkaWriter := kafka_utils.NewWriter(app.KafkaConfig)
-	eventsService := events.NewService(*kafkaWriter)
+	eventsService := events.NewService(kafkaWriter)
 	eventsHandler := events.NewHandler(eventsService)
 	mux.Post("/events/ingest", eventsHandler.Ingest)
 

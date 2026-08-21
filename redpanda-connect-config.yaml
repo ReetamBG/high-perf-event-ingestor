@@ -1,15 +1,34 @@
 input:
   kafka:
-    addresses: ["redpanda-0:9092"]
+    addresses:
+      - ${BROKERS}
     topics: ["events"]
-    consumer_group: "s3-storage"   # this refers to the consumer group id given to the pipe input, not the sink (s3 here)
+    consumer_group: "s3-storage-sink-connector" # this refers to the consumer group id given to the pipe input, not the sink (s3 here)
+
+pipeline:
+  processors:
+    # format each message by adding a newline (\n) at last (-1 index)
+    # creates a clean JSON data block using new lines (.jsonl) on concatenation
+    - insert_part:
+        content: "\n"
+        index: -1
+
 output:
   aws_s3:
-    endpoint: "http://s3-storage:8333"
+    endpoint: ${S3_ENDPOINT} # env
     force_path_style_urls: true
-    bucket: my-bucket
-    path: '${!uuid_v4()}.json'      # random name to each message
+    bucket: ${S3_BUCKET} # env
+    path: "${!uuid_v4()}.json" # random name to each message
     credentials:
-      id: "admin"
-      secret: "secret"
-    region: "us-east-1"  # dummy region for compatibility
+      id: ${AWS_ACCESS_KEY_ID} # env
+      secret: ${AWS_SECRET_ACCESS_KEY} # env
+    region: "us-east-1" # dummy region for compatibility
+
+    batching:
+      count: 1000
+      period: 10s
+      processors:
+        - archive:
+            format: concatenate # concat all the messages (already added newlines in pipeline)
+        # - compress:
+        #     algorithm: gzip # compress for easier storage   # disabling for now for debugging
