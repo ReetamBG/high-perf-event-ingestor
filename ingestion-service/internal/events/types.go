@@ -1,6 +1,6 @@
 package events
 
-type Todo struct {
+type DummyPayload struct {
 	ID        int    `json:"id"`
 	UserID    int    `json:"userId"`
 	Title     string `json:"title"`

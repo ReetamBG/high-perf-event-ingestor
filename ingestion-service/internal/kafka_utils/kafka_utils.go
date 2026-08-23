@@ -13,6 +13,10 @@ type KafkaConfig struct {
 	AutoTopicCreation bool
 	MaxAttempts       int
 	WriteTimeout      time.Duration
+
+	// async writes
+	BatchSize    int
+	BatchTimeout time.Duration
 }
 
 type Writer struct {
@@ -27,10 +31,29 @@ func NewWriter(config KafkaConfig) *Writer {
 		MaxAttempts:            config.MaxAttempts,
 		WriteTimeout:           config.WriteTimeout,
 
-		// async writes
+		// async writes (allows for batch writes)
 		Async:        true,
-		BatchSize:    100,
-		BatchTimeout: time.Second * 2,
+		BatchSize:    config.BatchSize,
+		BatchTimeout: config.BatchTimeout,
+
+		// async error and success hook (need this cuz async writes cannot be handled using http responses)
+		// no need to handle retries here as the writer auto retries enabled using MaxAttempts above
+		// this function is invoked if all MaxAttempts fails
+		// in that case, send to Dead Letter Queue (DLQ)
+		Completion: func(messages []kafka.Message, err error) {
+			if err != nil {
+				slog.Error("Async write to kafka broker failed after retries", "error", err, "messages", len(messages))
+
+				// for _, msg := range messages {
+				// log.Println(msg)
+				// TODO: send to DLQ here
+				// TODO: Use a different topic for this, connect sink connector input to this topic
+				// }
+
+				slog.Info("Sent messages to DLQ", "messages", len(messages))
+			}
+
+		},
 	}
 
 	return &Writer{
@@ -38,21 +61,15 @@ func NewWriter(config KafkaConfig) *Writer {
 	}
 }
 
-func (w *Writer) Write(topics []string, values [][]byte) error {
-	messages := []kafka.Message{}
-	for i := range values {
-		messages = append(messages, kafka.Message{
-			Topic: topics[i],
-			Value: values[i],
-		})
-	}
+func (w *Writer) Write(topic string, data []byte) {
+	w.WriteMessages(context.Background(),
+		kafka.Message{
+			Topic: topic,
+			Value: data,
+		},
+	)
 
-	err := w.WriteMessages(context.Background(), messages...)
-	if err != nil {
-		slog.Error("failed to write messages", "Error", err)
-	}
-
-	return err
+	// return err  // no point returning error now as its async
 }
 
 func (w *Writer) CloseConnection() error {

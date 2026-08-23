@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/ReetamBG/high-perf-event-ingestor/internal/events"
-	"github.com/ReetamBG/high-perf-event-ingestor/internal/kafka_utils"
+	"github.com/ReetamBG/high-perf-event-ingestor/internal/jwt"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -16,8 +16,8 @@ type Config struct {
 }
 
 type Application struct {
-	AppConifg   Config
-	KafkaConfig kafka_utils.KafkaConfig
+	AppConfig     Config
+	EventsHandler *events.Handler
 }
 
 func (app *Application) Mount() http.Handler {
@@ -29,29 +29,27 @@ func (app *Application) Mount() http.Handler {
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer) // recover from crashes
 	mux.Use(middleware.Timeout(60 * time.Second))
+	mux.Use(jwt.JWTMiddleware) // JWT middleware
 
 	mux.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("All good"))
 	})
 
-	kafkaWriter := kafka_utils.NewWriter(app.KafkaConfig)
-	eventsService := events.NewService(kafkaWriter)
-	eventsHandler := events.NewHandler(eventsService)
-	mux.Post("/events/ingest", eventsHandler.Ingest)
+	mux.Post("/events/ingest", app.EventsHandler.Ingest)
 
 	return mux
 }
 
 func (app *Application) Run(h http.Handler) error {
 	s := http.Server{
-		Addr:         app.AppConifg.Addr,
+		Addr:         app.AppConfig.Addr,
 		Handler:      h,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  time.Minute,
 	}
 
-	log.Printf("Server running on port: %s\n", app.AppConifg.Addr)
+	log.Printf("Server running on port: %s\n", app.AppConfig.Addr)
 	return s.ListenAndServe()
 }
