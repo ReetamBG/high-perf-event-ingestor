@@ -25,8 +25,8 @@ output:
     region: "us-east-1" # dummy region for compatibility
 
     batching:
-      count: 1000
-      period: 10s
+      count: 1000  # batch 1000 messages
+      period: 10s  # or for 10 seconds whichever happens first
       processors:
         - archive:
             format: concatenate # concat all the messages (already added newlines in pipeline)
