@@ -19,7 +19,7 @@ type svc struct {
 
 // TODO : make provision for different events
 func (s *svc) Ingest(ctx context.Context, data any) error {
-	if reflect.TypeOf(data) == reflect.TypeFor[DummyPayload]() {
+	if reflect.TypeOf(data) == reflect.TypeFor[Event]() {
 		data, err := json.Marshal(data)
 		if err != nil {
 			slog.Error("Error unmarshling data", "Error", err)

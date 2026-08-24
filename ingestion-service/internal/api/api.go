@@ -29,14 +29,13 @@ func (app *Application) Mount() http.Handler {
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer) // recover from crashes
 	mux.Use(middleware.Timeout(60 * time.Second))
-	mux.Use(jwt.JWTMiddleware) // JWT middleware
 
 	mux.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("All good"))
 	})
 
-	mux.Post("/events/ingest", app.EventsHandler.Ingest)
+	mux.With(jwt.JWTMiddleware).Post("/events/ingest", app.EventsHandler.Ingest) // protected with jwt
 
 	return mux
 }

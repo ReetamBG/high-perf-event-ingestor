@@ -29,7 +29,7 @@ func (h *Handler) Ingest(w http.ResponseWriter, r *http.Request) {
 
 	defer r.Body.Close()
 
-	var data DummyPayload
+	var data Event
 
 	if err := json_utils.ReadBody(r, &data); err != nil {
 		slog.Error("Error reading body", "Error", err)
