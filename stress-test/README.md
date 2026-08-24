@@ -159,7 +159,7 @@ CONTAINER_NAME=ingestion-service ./scripts/collect-container-metrics.sh
 ./scripts/verify-storage.sh
 
 # terminal 3: the actual test
-k6 run scenarios/progressive.js
+k6 run scenarios/progressive.js # and the burst and sustained if necessary
 
 # afterwards: wait for drain, then re-check lag + storage
 ```
