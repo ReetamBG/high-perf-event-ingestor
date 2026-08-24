@@ -76,6 +76,7 @@ if [[ -z "${JWT_TOKEN:-}" ]]; then
 fi
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
+START_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"   # cutoff for "objects created by this benchmark"
 CSV="results/full-benchmark-$STAMP-resources.csv"
 OUT_JSON="results/full-benchmark-$STAMP.json"
 mkdir -p results
@@ -218,10 +219,21 @@ run_test burst burst.js burst-load-test; BURST_JSON="$RUN_JSON"; export BURST_JS
 drain
 
 # ---- storage verification ----
+MSGS_PERSISTED=-1; MSGS_OBJECTS=-1
 if [[ $STORAGE_OK = 1 ]]; then
   say "Storage verification"
   read -r FINAL_COUNT FINAL_BYTES <<< "$(storage_stats)"
   info "objects=$FINAL_COUNT total_bytes=$FINAL_BYTES"
+  if [[ -x scripts/count-stored-messages.sh ]]; then
+    info "counting exact messages persisted since $START_UTC (downloads objects created during this run)..."
+    if MSG_LINE=$(./scripts/count-stored-messages.sh "$START_UTC" 2>/dev/null); then
+      MSGS_OBJECTS=$(echo "$MSG_LINE" | sed -n 's/.*objects=\([0-9]*\).*/\1/p')
+      MSGS_PERSISTED=$(echo "$MSG_LINE" | sed -n 's/.*messages=\([0-9]*\).*/\1/p')
+      info "messages persisted in new objects=$MSGS_PERSISTED (across $MSGS_OBJECTS objects)"
+    else
+      info "WARNING: message counting failed — see scripts/count-stored-messages.sh output"
+    fi
+  fi
 fi
 
 say "Stopping CPU/RAM monitoring"
@@ -235,7 +247,8 @@ export _TARGET_URL="$TARGET_URL" _CONTAINER_NAME="$CONTAINER_NAME" _CSV="$CSV" _
 export _BASELINE_COUNT="${BASELINE_COUNT:--1}" _BASELINE_BYTES="${BASELINE_BYTES:--1}"
 export _AFTER_PROG="${AFTER_PROG:--1}" _AFTER_SUST="${AFTER_SUST:--1}"
 export _FINAL_COUNT="${FINAL_COUNT:--1}" _FINAL_BYTES="${FINAL_BYTES:--1}"
-export _STORAGE_OK _S3_BUCKET
+export _STORAGE_OK _S3_BUCKET _START_UTC="$START_UTC"
+export _MSGS_PERSISTED="${MSGS_PERSISTED:--1}" _MSGS_OBJECTS="${MSGS_OBJECTS:--1}"
 
 python3 - "$OUT_JSON" <<'PYEOF'
 import json, os, re, subprocess, sys
@@ -306,6 +319,11 @@ for name in ('progressive', 'sustained', 'burst'):
             per_phase[name]['avg_cpu_seconds_per_1000_events'] = round(
                 per_phase[name]['avg_cpu_percent'] / 100 * dur_s / (ev / 1000), 4)
 
+# sent vs persisted: events_sent summed across all test phases
+messages_sent = sum(
+    ((t or {}).get('counters') or {}).get('events_sent') or 0
+    for t in tests.values()
+)
 def git_sha():
     try:
         return subprocess.check_output(
@@ -343,8 +361,18 @@ result = {
         'final_objects': env_int('_FINAL_COUNT'),
         'baseline_total_bytes': env_int('_BASELINE_BYTES'),
         'final_total_bytes': env_int('_FINAL_BYTES'),
-        'note': ('object deltas are raw file counts; multiply by your sink batch '
-                 'size to estimate events persisted'),
+        'cutoff_utc': os.environ.get('_START_UTC'),
+        'messages_persisted_exact': env_int('_MSGS_PERSISTED'),
+        'messages_persisted_objects': env_int('_MSGS_OBJECTS'),
+        'messages_sent_http': messages_sent,
+        'persistence_ratio': (
+            round(env_int('_MSGS_PERSISTED') / messages_sent, 6)
+            if env_int('_MSGS_PERSISTED') >= 0 and messages_sent > 0 else None
+        ),
+        'note': ('messages_persisted_exact = exact per-message count obtained by '
+                 'downloading every object created after cutoff_utc and counting '
+                 'its records (JSONL, one message per line); batch sizes vary per '
+                 'object so size-based estimates are not used'),
     },
     'tests': tests,
 }

@@ -56,12 +56,9 @@ else
   snapshot "current"
   cat <<'EOF'
 
-Tip: to measure how many events were PERSISTED by a test run:
-  1. Run this script BEFORE the test  -> baseline count B
-  2. Run the test, wait for downstream to drain
-     (use --watch until the count stops increasing)
-  3. Run this script AFTER           -> final count A
-  persisted ~= A - B  (x objects-per-batch if your sink batches events
-  into files; divide by batch size accordingly)
+Tip: this script only counts OBJECTS. For the exact number of MESSAGES
+persisted, use scripts/count-stored-messages.sh <utc-cutoff> — it downloads
+each object created after the cutoff and counts its records exactly,
+regardless of how many messages each object happens to contain.
 EOF
 fi

@@ -30,7 +30,9 @@ stress-test/
 ├── scripts/
 │   ├── generate-jwt.sh                  <- mint an HS256 JWT (no deps beyond openssl)
 │   ├── collect-container-metrics.sh     <- sample container CPU/mem to CSV
-│   └── verify-storage.sh                <- count objects + sizes on S3-compatible storage
+│   ├── verify-storage.sh                <- object count + sizes on S3-compatible storage
+│   ├── count-stored-messages.sh         <- EXACT message count from object contents
+│   └── run-full-benchmark.sh            <- the ultimate one-command benchmark
 └── results/                             <- JSON reports + CSV metrics land here (gitignored)
 ```
 
@@ -60,7 +62,7 @@ stress-test/
 |---|---|
 | Container CPU/memory | `scripts/collect-container-metrics.sh` (docker stats sampler -> CSV) |
 | Peak consumer lag | Lag inspection CLI of your broker (see §8) |
-| Events persisted | Object-count delta on storage (see §9, `scripts/verify-storage.sh`) |
+| Messages persisted | **Exact** per-message count read from object contents (§9, `scripts/count-stored-messages.sh`); auto-included in full-benchmark runs |
 | Storage object sizes | Same script prints total + average object size |
 
 ## 3. Configuration / environment variables
@@ -195,21 +197,58 @@ the load generator itself never touches the broker.
 
 ## 9. Verifying events reached storage
 
+Two levels of verification:
+
+**Object-level (cheap):**
+
 ```bash
 ./scripts/verify-storage.sh            # snapshot: object count, total & avg size
 ./scripts/verify-storage.sh --watch 5  # poll every 5s while the pipeline drains
 ```
 
+**Message-level (exact — this is the one that matters):**
+
+```bash
+# count the exact number of messages inside every object created after a time:
+./scripts/count-stored-messages.sh 2026-08-24T12:00:00Z
+# -> objects=1247 messages=1248720 bytes=318664320
+
+# machine-readable:
+./scripts/count-stored-messages.sh <cutoff> --json
+```
+
+How it works: each storage object is concatenated JSONL (one message per
+line), so downloading the object and counting lines gives an **exact**
+per-message count. This is deliberately independent of batching — sinks
+typically flush after N messages OR T seconds, whichever comes first, so
+object sizes are ragged and size-based estimates ("objects × batch size")
+are misleading. Never estimate from sizes; count records.
+
+Downloads happen to a temp dir under `results/` and are deleted when done.
+Tune `FETCH_CONCURRENCY` (default 8) if you have many objects.
+
 **Events sent vs persisted:**
 
-1. Snapshot before the test → baseline object count `B`.
-2. Run the test; keep watching until new-object growth stops (drained).
-3. Snapshot after → `A`. New objects = `A - B`; multiply by your sink's
-   batch size (events per object) to compare against `events_accepted`,
-   e.g. batches of 1000 events/object → `persisted ≈ (A-B) × 1000`.
+1. Note the UTC time just before starting the test (or let
+   `run-full-benchmark.sh` do all of this automatically).
+2. Run the test; wait for drain (`verify-storage.sh --watch` until growth
+   stops, or the broker lag hits ~0 in §8).
+3. Run `count-stored-messages.sh <start-time>` → exact persisted count.
+4. Compare against `events_sent` / `events_accepted` from the k6 report:
 
-Any shortfall between `events_accepted` and estimated persisted events =
-downstream delivery/persistence loss (invisible to the HTTP layer).
+```
+sent:      events_sent        (all HTTP attempts)
+accepted:  events_accepted    (HTTP 2xx — API accepted for async processing)
+persisted: messages=<M>       (exact, from storage contents)
+```
+
+Any gap `accepted − persisted` is downstream delivery/persistence loss,
+invisible at the HTTP layer.
+
+> If you later switch payloads from JSON to protobuf, keep the sink writing
+> length-delimited frames (varint length prefix per message). Then counting
+> stays exact — walk frame headers instead of counting lines. Raw
+> unframed-concatenated protobuf is NOT safely countable.
 
 ## 10. Interpreting a run
 
@@ -222,7 +261,7 @@ downstream delivery/persistence loss (invisible to the HTTP layer).
 - **Burst test**: if 202s stay high during the burst but lag spikes and then
   drains to ~0 within the recovery window, buffering/backpressure works as
   designed. If lag never drains, downstream is the bottleneck.
-- **accepted ≫ persisted estimate** → async producer or sink dropping data.
+- **accepted ≫ persisted** (from `messages_persisted_exact`) → async producer or sink dropping data.
 
 Results in `results/*.json` are flat, timestamped, per-stage structures —
 a future Prometheus/Grafana integration can read them without any rewrite
