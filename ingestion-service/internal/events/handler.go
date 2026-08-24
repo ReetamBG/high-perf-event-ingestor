@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/ReetamBG/high-perf-event-ingestor/internal/json_utils"
-	"github.com/ReetamBG/high-perf-event-ingestor/internal/jwt"
+	// "github.com/ReetamBG/high-perf-event-ingestor/internal/jwt"
 )
 
 type Handler struct {
@@ -19,13 +19,13 @@ func NewHandler(s Service) *Handler {
 }
 
 func (h *Handler) Ingest(w http.ResponseWriter, r *http.Request) {
-	claims, err := jwt.GetClaims(r.Context())
-	if err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
+	// claims, err := jwt.GetClaims(r.Context())
+	// if err != nil {
+	// 	http.Error(w, "Internal server error", http.StatusInternalServerError)
+	// 	return
+	// }
 
-	slog.Info("TEST", "Claims", claims)
+	// slog.Info("TEST", "Claims", claims)
 
 	defer r.Body.Close()
 

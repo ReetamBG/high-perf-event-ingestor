@@ -136,7 +136,12 @@ JWT_TOKEN="$JWT_TOKEN" \
   k6 run scenarios/burst.js
 ```
 
-Or put everything in `.env` and run `k6 run --envfile .env scenarios/<x>.js`.
+Or keep everything in `.env` and source it before running:
+
+```bash
+set -a; source .env; set +a
+k6 run scenarios/<x>.js   # picks up all vars from .env
+```
 
 Each run prints a per-stage markdown table (achieved eps, p95, p99,
 error rate, flags) and writes a structured JSON report to `results/`.
@@ -227,4 +232,4 @@ of the test code.
 
 - Run k6 from inside `stress-test/` so `results/...` paths resolve.
 - If high stages fail with "insufficient VUs", raise `MAX_VUS`.
-- k6 v1.x: pass config via `-e VAR=...`, `--envfile .env`, or real env vars.
+- k6 v1.x: pass config via `-e VAR=...`, or real env vars (e.g. `set -a; source .env; set +a`).
