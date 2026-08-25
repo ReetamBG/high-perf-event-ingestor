@@ -12,7 +12,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /bin/app ./cmd/server/main.go
 
 # Transfer to a lean image
 
-FROM gcr.io/distroless/base-debian11 as build-relase-stage
+FROM gcr.io/distroless/base-debian11 AS build-relase-stage
 
 COPY --from=build-stage /bin/app /app
 

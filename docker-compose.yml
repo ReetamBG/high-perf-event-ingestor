@@ -1,14 +1,94 @@
+volumes:
+  redpanda-0: null
+
 services:
   ingestion-service:
+    container_name: ingestion-service
     build:
       context: ./ingestion-service
       dockerfile: Dockerfile
     ports:
-      - 8080:8080
-    restart: "always"
+      - 8080:${PORT}
+    volumes:
+      - ./ingestion-service:/app
+      - /app/tmp # for temporary files from golang air
+    env_file: .env
+    depends_on:
+      # - s3-storage
+      - redpanda-0
+
+  redpanda-0:
+    image: docker.redpanda.com/redpandadata/redpanda:v26.2.1
+    container_name: redpanda-0
+    volumes:
+      - redpanda-0:/var/lib/redpanda/data
+    ports:
+      - 18081:18081 # schema registry
+      - 19092:19092 # kafka protocol API
+      - 19644:9644 # admin api (used by redpanda console)
+    command:
+      - redpanda
+      - start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      # Address the broker advertises to clients that connect to the Kafka API.
+      # Use the internal addresses to connect to the Redpanda brokers'
+      # from inside the same Docker network.
+      # Use the external addresses to connect to the Redpanda brokers'
+      # from outside the Docker network.
+      - --advertise-kafka-addr internal://redpanda-0:9092,external://localhost:19092
+      - --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18081
+      # Redpanda brokers use the RPC API to communicate with each other internally.
+      - --rpc-addr redpanda-0:33145
+      - --advertise-rpc-addr redpanda-0:33145
+      # Mode dev-container uses well-known configuration properties for development in containers.
+      - --mode dev-container
+      # Tells Seastar (the framework Redpanda uses under the hood) to use 1 core on the system.
+      - --smp 1
+      - --default-log-level=info
+
+  console:
+    container_name: redpanda-console
+    image: docker.redpanda.com/redpandadata/console:v3.9.0
+    entrypoint: /bin/sh
+    command: -c 'echo "$$CONSOLE_CONFIG_FILE" > /tmp/config.yml; /app/console'
+    environment:
+      CONFIG_FILEPATH: /tmp/config.yml
+      CONSOLE_CONFIG_FILE: |
+        kafka:
+          brokers: ["redpanda-0:9092"]
+        schemaRegistry:
+          enabled: true
+          urls: ["http://redpanda-0:8081"]
+        redpanda:
+          adminApi:
+            enabled: true
+            urls: ["http://redpanda-0:9644"]
+    ports:
+      - 9080:8080
+    depends_on:
+      - redpanda-0
+
+  sink-connector:
+    container_name: redpanda-connect
+    image: redpandadata/connect
+    volumes:
+      - ./redpanda-connect-config.yaml:/connect.yaml
+    command: ["run", "/connect.yaml"]
+    ports:
+      - 4195:4195  # health check http port
+    env_file:
+      - path: .env
+        required: true
+    depends_on:
+      - redpanda-0
+      - s3-storage
 
   s3-storage:
-    image: zenko/cloudserver:latest
-    container_name: cloudserver-s3-storage
+    container_name: s3-storage
+    image: chrislusf/seaweedfs
     ports:
-      - 8000:8000
+      - 8333:8333 # s3 endpoint
+      - 8888:8888 # web ui
+    env_file:
+      - path: .env
+        required: true

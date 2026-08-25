@@ -71,3 +71,12 @@ func GetClaims(ctx context.Context) (*CustomClaims, error) {
 	}
 	return claims, nil
 }
+
+// Usage
+// claims, err := jwt.GetClaims(r.Context())
+// if err != nil {
+// 	http.Error(w, "Internal server error", http.StatusInternalServerError)
+// 	return
+// }
+
+// slog.Info("TEST", "Claims", claims)

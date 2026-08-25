@@ -18,7 +18,7 @@ output:
     endpoint: ${S3_ENDPOINT} # env
     force_path_style_urls: true
     bucket: ${S3_BUCKET} # env
-    path: "${!uuid_v4()}.json" # random name to each message
+    path: "${!now().ts_format(\"2006/01/02\")}/${!uuid_v4()}.json" # name of each message/object
     credentials:
       id: ${AWS_ACCESS_KEY_ID} # env
       secret: ${AWS_SECRET_ACCESS_KEY} # env
@@ -30,5 +30,5 @@ output:
       processors:
         - archive:
             format: concatenate # concat all the messages (already added newlines in pipeline)
-        # - compress:
-        #     algorithm: gzip # compress for easier storage   # disabling for now for debugging
+        - compress:
+            algorithm: gzip # compress for easier storage

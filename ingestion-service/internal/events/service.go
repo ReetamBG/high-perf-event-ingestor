@@ -4,32 +4,29 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
-	"reflect"
 
 	"github.com/ReetamBG/high-perf-event-ingestor/internal/kafka_utils"
 )
 
 type Service interface {
-	Ingest(ctx context.Context, data any) error
+	Ingest(ctx context.Context, data Event) error
 }
 
 type svc struct {
 	kafkaWriter *kafka_utils.Writer
 }
 
-// TODO : make provision for different events
-func (s *svc) Ingest(ctx context.Context, data any) error {
-	if reflect.TypeOf(data) == reflect.TypeFor[Event]() {
-		data, err := json.Marshal(data)
-		if err != nil {
-			slog.Error("Error unmarshling data", "Error", err)
-			return err
-		}
-
-		topic := "events"
-
-		s.kafkaWriter.Write(topic, data)
+// TODO : make provision for different events later
+func (s *svc) Ingest(ctx context.Context, data Event) error {
+	payload, err := json.Marshal(data)
+	if err != nil {
+		slog.Error("Error unmarshling data", "Error", err)
+		return err
 	}
+
+	topic := "events"
+
+	s.kafkaWriter.Write(topic, payload)
 
 	return nil
 }
