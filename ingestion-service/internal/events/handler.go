@@ -28,6 +28,8 @@ func (h *Handler) Ingest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO: add user id from JWT into the event
+
 	if err := h.Svc.Ingest(r.Context(), data); err != nil {
 		json_utils.Write(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 		return
