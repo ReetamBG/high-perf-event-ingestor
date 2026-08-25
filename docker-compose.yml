@@ -1,5 +1,6 @@
 volumes:
   redpanda-0: null
+  s3_data: null
 
 services:
   ingestion-service:
@@ -9,12 +10,9 @@ services:
       dockerfile: Dockerfile
     ports:
       - 8080:${PORT}
-    volumes:
-      - ./ingestion-service:/app
-      - /app/tmp # for temporary files from golang air
+    # add volumes if persistent logs needed
     env_file: .env
     depends_on:
-      # - s3-storage
       - redpanda-0
 
   redpanda-0:
@@ -43,7 +41,7 @@ services:
       # Mode dev-container uses well-known configuration properties for development in containers.
       - --mode dev-container
       # Tells Seastar (the framework Redpanda uses under the hood) to use 1 core on the system.
-      - --smp 1
+      # - --smp 1  # commented out to allow multiple core usage
       - --default-log-level=info
 
   console:
@@ -92,3 +90,5 @@ services:
     env_file:
       - path: .env
         required: true
+    volumes:
+      - s3_data:/data
