@@ -218,8 +218,10 @@ Two levels of verification:
 ```
 
 How it works: each storage object is concatenated JSONL (one message per
-line), so downloading the object and counting lines gives an **exact**
-per-message count. This is deliberately independent of batching — sinks
+line), so downloading the object and counting records gives an **exact**
+per-message count. Objects compressed by the sink (gzip) are detected via
+magic bytes and decompressed before counting — enabling/disabling sink
+compression does not affect correctness of the count (only object sizes). This is deliberately independent of batching — sinks
 typically flush after N messages OR T seconds, whichever comes first, so
 object sizes are ragged and size-based estimates ("objects × batch size")
 are misleading. Never estimate from sizes; count records.

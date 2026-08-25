@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 # Counts the exact number of MESSAGES persisted to S3-compatible storage,
 # by downloading every object created after a UTC cutoff timestamp and
-# counting its records (JSONL: one message per line).
+# counting its records.
+#
+# Compression-aware: objects written as plain JSONL are counted directly;
+# gzip-compressed objects (magic bytes 0x1f 0x8b) are decompressed first,
+# so the count stays exact regardless of sink compression settings.
 #
 # This is exact regardless of how many messages each object contains —
 # batching (e.g. N msgs OR T seconds, whichever first) makes object sizes
-# ragged, but line counts stay correct.
+# ragged, but record counts stay correct.
 #
 # Usage:
 #   ./scripts/count-stored-messages.sh <UTC-cutoff> [--json]
@@ -76,7 +80,14 @@ count_one() {
   local f="$TMP/obj-$2"
   if aws s3api get-object --endpoint-url "$S3_ENDPOINT" \
        --bucket "$S3_BUCKET" --key "$key" "$f" >/dev/null 2>&1; then
-    wc -l < "$f"
+    # Objects may be gzip-compressed by the sink (e.g. Redpanda Connect's
+    # archive+compress processors). Detect gzip magic bytes (0x1f 0x8b) and
+    # decompress before counting, so the message count is exact either way.
+    if [[ "$(head -c 2 "$f" | od -An -tx1 | tr -d ' \n')" == "1f8b" ]]; then
+      gunzip -c "$f" | wc -l
+    else
+      wc -l < "$f"
+    fi
     rm -f "$f"
   else
     echo 0

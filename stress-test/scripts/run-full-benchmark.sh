@@ -371,8 +371,8 @@ result = {
         ),
         'note': ('messages_persisted_exact = exact per-message count obtained by '
                  'downloading every object created after cutoff_utc and counting '
-                 'its records (JSONL, one message per line); batch sizes vary per '
-                 'object so size-based estimates are not used'),
+                 'its records; gzip-compressed objects are decompressed first, and '
+                 'batch sizes vary per object so size-based estimates are not used'),
     },
     'tests': tests,
 }
