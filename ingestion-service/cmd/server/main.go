@@ -26,8 +26,8 @@ func main() {
 	kafkaConfig := kafka_utils.KafkaConfig{
 		Brokers:           env.GetSlice("BROKERS", defaultBrokers),
 		AutoTopicCreation: true,
-		MaxAttempts:       3,
-		WriteTimeout:      10 * time.Second,
+		MaxAttempts:       2,
+		WriteTimeout:      2 * time.Second,
 
 		// async writes
 		BatchSize:    500,
