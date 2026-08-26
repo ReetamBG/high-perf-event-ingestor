@@ -1,0 +1,50 @@
+volumes:
+  s3_data: null
+
+services:
+  ingestion-node-monolith:
+    container_name: ingestion-node-monolith
+    build:
+      context: ./ingestion-service
+      dockerfile: Dockerfile
+    ports:
+      - 8080:${PORT}
+    env_file: .env
+    depends_on:
+      s3-storage:
+        condition: service_started
+      s3-init:
+        condition: service_completed_successfully
+
+  s3-storage:
+    container_name: s3-storage-node
+    image: chrislusf/seaweedfs
+    ports:
+      - 8333:8333 # s3 endpoint
+      - 8888:8888 # web ui
+    env_file:
+      - path: .env
+        required: true
+    volumes:
+      - s3_data:/data
+
+  # naive stacks get no fancy init; this just waits for seaweedfs and makes
+  # sure the bucket exists so the node app can start PUTting right away.
+  s3-init:
+    image: amazon/aws-cli
+    environment:
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        for i in $$(seq 1 30); do
+          aws s3api create-bucket --endpoint-url http://s3-storage-node:8333 --bucket "$${S3_BUCKET:-my-bucket}" && exit 0
+          aws s3api head-bucket --endpoint-url http://s3-storage-node:8333 --bucket "$${S3_BUCKET:-my-bucket}" 2>/dev/null && exit 0
+          sleep 2
+        done
+        echo "bucket init failed" && exit 1
+    depends_on:
+      - s3-storage

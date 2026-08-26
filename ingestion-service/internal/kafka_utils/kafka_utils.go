@@ -23,6 +23,7 @@ type Writer struct {
 	*kafka.Writer
 }
 
+// TODO: add backpressure when kafka is full
 func NewWriter(config KafkaConfig) *Writer {
 	w := &kafka.Writer{
 		Addr:                   kafka.TCP(config.Brokers...),
