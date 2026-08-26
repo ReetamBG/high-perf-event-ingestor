@@ -1,0 +1,39 @@
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+.pnpm-store
+
+# Build outputs
+dist
+build
+.next
+.nuxt
+
+# Environment secrets and credentials
+.env
+.env.local
+.env.production
+.aws
+*.pem
+
+# IDEs, text editors, and OS garbage
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+.DS_Store
+Thumbs.db
+
+# Version control and documentation
+.git
+.gitignore
+README.md
+LICENSE
+.github
+
+# Docker configuration files
+Dockerfile*
+docker-compose*
+.dockerignore
