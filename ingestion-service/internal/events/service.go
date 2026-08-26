@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/ReetamBG/high-perf-event-ingestor/internal/env"
 	"github.com/ReetamBG/high-perf-event-ingestor/internal/kafka_utils"
 )
 
@@ -27,7 +28,7 @@ func (s *svc) Ingest(ctx context.Context, data Event) error {
 		return err
 	}
 
-	topic := "events"
+	topic := env.GetString("KAFKA_EVENTS_TOPIC", "events")
 
 	status := s.kafkaWriter.Write(topic, payload)
 	if !status {

@@ -30,8 +30,8 @@ func main() {
 		WriteTimeout:      2 * time.Second,
 
 		// async writes
-		BatchSize:    500,
-		BatchTimeout: time.Millisecond * 10,
+		BatchSize:    1000,
+		BatchTimeout: time.Millisecond * 100,
 		QueueSize:    env.GetInt("QUEUE_SIZE", 10000),
 	}
 

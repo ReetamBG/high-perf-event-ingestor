@@ -67,8 +67,9 @@ func NewWriter(config KafkaConfig) *Writer {
 		BatchTimeout: config.BatchTimeout,
 	}
 
-	writer.wg.Add(1)
-	writer.wg.Go(writer.drain) // start draining the queue
+	for _ = range 8 {
+		writer.wg.Go(writer.drain) // start draining the queue
+	}
 
 	return writer
 }
