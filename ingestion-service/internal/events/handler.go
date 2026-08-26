@@ -1,6 +1,7 @@
 package events
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -31,6 +32,12 @@ func (h *Handler) Ingest(w http.ResponseWriter, r *http.Request) {
 	// TODO: add user id from JWT into the event
 
 	if err := h.Svc.Ingest(r.Context(), data); err != nil {
+		if errors.Is(err, ErrQueueFull) {
+			w.Header().Set("Retry-After", "1")
+			json_utils.Write(w, http.StatusTooManyRequests, map[string]string{"error": "too many requests, retry later"})
+			return
+		}
+
 		json_utils.Write(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 		return
 	}

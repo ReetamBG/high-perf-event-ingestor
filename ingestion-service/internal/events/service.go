@@ -3,6 +3,7 @@ package events
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 
 	"github.com/ReetamBG/high-perf-event-ingestor/internal/kafka_utils"
@@ -16,6 +17,8 @@ type svc struct {
 	kafkaWriter *kafka_utils.Writer
 }
 
+var ErrQueueFull = errors.New("ingest queue full")
+
 // TODO : make provision for different events later
 func (s *svc) Ingest(ctx context.Context, data Event) error {
 	payload, err := json.Marshal(data)
@@ -26,7 +29,10 @@ func (s *svc) Ingest(ctx context.Context, data Event) error {
 
 	topic := "events"
 
-	s.kafkaWriter.Write(topic, payload)
+	status := s.kafkaWriter.Write(topic, payload)
+	if !status {
+		return ErrQueueFull
+	}
 
 	return nil
 }

@@ -32,6 +32,7 @@ func main() {
 		// async writes
 		BatchSize:    500,
 		BatchTimeout: time.Millisecond * 10,
+		QueueSize:    env.GetInt("QUEUE_SIZE", 10000),
 	}
 
 	// init services and handlers

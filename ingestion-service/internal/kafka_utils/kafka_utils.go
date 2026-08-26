@@ -3,6 +3,7 @@ package kafka_utils
 import (
 	"context"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -17,10 +18,18 @@ type KafkaConfig struct {
 	// async writes
 	BatchSize    int
 	BatchTimeout time.Duration
+	QueueSize    int // for backpressure
 }
 
 type Writer struct {
 	*kafka.Writer
+
+	// for backpressure when kafka is full
+	Queue        chan kafka.Message
+	BatchSize    int
+	BatchTimeout time.Duration
+
+	wg sync.WaitGroup
 }
 
 func NewWriter(config KafkaConfig) *Writer {
@@ -32,48 +41,92 @@ func NewWriter(config KafkaConfig) *Writer {
 		WriteTimeout:           config.WriteTimeout,
 
 		// async writes (allows for batch writes)
-		Async:        true,
-		BatchSize:    config.BatchSize,
-		BatchTimeout: config.BatchTimeout,
+		// disabled as we are adding backpressure from our own side
+		// Async:        true,
+		// BatchSize:    config.BatchSize,
+		// BatchTimeout: config.BatchTimeout,
+		Async: false,
 
-		// async error and success hook (need this cuz async writes cannot be handled using http responses)
-		// no need to handle retries here as the writer auto retries enabled using MaxAttempts above
-		// this function is invoked if all MaxAttempts fails
-		// in that case, send to Dead Letter Queue (DLQ)
+		// Completion handles final Kafka write failures after all retries.
+		// Failed messages can be routed to the producer-side DLQ.
 		Completion: func(messages []kafka.Message, err error) {
 			if err != nil {
 				slog.Error("Async write to kafka broker failed after retries", "error", err, "messages", len(messages))
 
-				// for _, msg := range messages {
-				// log.Println(msg)
 				// TODO: send to DLQ here
 				// TODO: Use a different topic for this, connect sink connector input to this topic
-				// }
-
-				slog.Info("Sent messages to DLQ", "messages", len(messages))
 			}
 
 		},
 	}
 
-	return &Writer{
-		Writer: w,
+	writer := &Writer{
+		Writer:       w,
+		Queue:        make(chan kafka.Message, config.QueueSize),
+		BatchSize:    config.BatchSize,
+		BatchTimeout: config.BatchTimeout,
+	}
+
+	writer.wg.Add(1)
+	writer.wg.Go(writer.drain) // start draining the queue
+
+	return writer
+}
+
+func (w *Writer) Write(topic string, data []byte) bool {
+	select {
+	// if can add to queue then okay
+	case w.Queue <- kafka.Message{Topic: topic, Value: data}:
+		return true
+
+	// otherwise kafka is full => slow writes => queue filled up
+	default:
+		return false
 	}
 }
 
-func (w *Writer) Write(topic string, data []byte) {
-	w.WriteMessages(context.Background(),
-		kafka.Message{
-			Topic: topic,
-			Value: data,
-		},
-	)
+// drains the messages from queue (channel) and writes to kafka
+// writes when BatchSize is attained or when BatchTimeout is reached
+func (w *Writer) drain() {
+	batch := make([]kafka.Message, 0, w.BatchSize)
+	ticker := time.NewTicker(w.BatchTimeout)
+	defer ticker.Stop()
 
-	// return err  // no point returning error now as its async
+	for {
+		select {
+		// if messages are there in queue add to batch
+		case msg, ok := <-w.Queue:
+			if !ok {
+				if len(batch) > 0 {
+					w.WriteMessages(context.Background(), batch...)
+				}
+				return
+			}
+
+			batch = append(batch, msg)
+			// push them when batch fills
+			if len(batch) >= w.BatchSize {
+				w.WriteMessages(context.Background(), batch...)
+				batch = batch[:0]
+			}
+
+		// or if timer expires before batch fills then also send
+		// essentially acts as BatchSize or BatchTimeout whichever occurs first
+		case <-ticker.C:
+			if len(batch) > 0 {
+				w.WriteMessages(context.Background(), batch...)
+				batch = batch[:0]
+			}
+		}
+	}
+
 }
 
 func (w *Writer) CloseConnection() error {
-	err := w.Close()
+	close(w.Queue) // close the queue - will flush it
+	w.wg.Wait()
+
+	err := w.Close() // close the writer after that
 	if err != nil {
 		slog.Error("failed to close writer", "Error: ", err)
 	}
