@@ -1,0 +1,293 @@
+{
+  "benchmark": "full",
+  "generated_at_utc": "2026-08-26T16:20:58.323577+00:00",
+  "git_sha": "5df0d29",
+  "target_url": "http://localhost:8080/events/ingest",
+  "resources": {
+    "container": "ingestion-service",
+    "monitored": true,
+    "sample_interval_s": 1,
+    "overall": {
+      "samples": 543,
+      "avg_cpu_percent": 30.97,
+      "max_cpu_percent": 260.26,
+      "avg_mem_mib": 38.51,
+      "peak_mem_mib": 53.99
+    },
+    "per_phase": {
+      "idle": {
+        "samples": 543,
+        "avg_cpu_percent": 30.97,
+        "max_cpu_percent": 260.26,
+        "avg_mem_mib": 38.51,
+        "peak_mem_mib": 53.99
+      }
+    },
+    "csv_file": "full-benchmark-20260826-213136-resources.csv"
+  },
+  "storage": {
+    "configured": false,
+    "bucket": null,
+    "baseline_objects": 1,
+    "after_progressive_objects": 7972,
+    "after_sustained_objects": 8095,
+    "final_objects": 8677,
+    "baseline_total_bytes": 0,
+    "final_total_bytes": 56305818,
+    "cutoff_utc": "2026-08-26T16:01:36Z",
+    "messages_persisted_exact": 4331378,
+    "messages_persisted_objects": 8677,
+    "messages_sent_http": 4331395,
+    "persistence_ratio": 0.999996,
+    "note": "messages_persisted_exact = exact per-message count obtained by downloading every object created after cutoff_utc and counting its records; gzip-compressed objects are decompressed first, and batch sizes vary per object so size-based estimates are not used"
+  },
+  "tests": {
+    "progressive": {
+      "test": "Progressive Load Test",
+      "generated_at": "2026-08-26T16:05:39.071Z",
+      "target_url": "http://localhost:8080/events/ingest",
+      "counters": {
+        "events_sent": 3981528,
+        "events_accepted_http_2xx": 3980405,
+        "total_http_requests": 3980445,
+        "status_distribution_total": {
+          "http_2xx": 3980411
+        }
+      },
+      "note": "events_accepted counts HTTP 2xx only (API-level acceptance for async processing). Downstream delivery and persistence must be verified externally: consumer-lag drain + storage object delta.",
+      "stages": [
+        {
+          "stage": "1000 eps (30s)",
+          "target_rate_eps": 1000,
+          "achieved_throughput_eps": 1000,
+          "total_requests": 30000,
+          "avg_latency_ms": 0.21,
+          "p95_latency_ms": 0.24,
+          "p99_latency_ms": 0.38,
+          "max_latency_ms": 15.2,
+          "error_rate_pct": 0,
+          "status_distribution": {
+            "http_2xx": 30000
+          },
+          "flags": []
+        },
+        {
+          "stage": "5000 eps (30s)",
+          "target_rate_eps": 5000,
+          "achieved_throughput_eps": 5000,
+          "total_requests": 150000,
+          "avg_latency_ms": 0.19,
+          "p95_latency_ms": 0.23,
+          "p99_latency_ms": 1.02,
+          "max_latency_ms": 13.97,
+          "error_rate_pct": 0,
+          "status_distribution": {
+            "http_2xx": 150000
+          },
+          "flags": [
+            "latency instability (p99 1ms > 2x baseline 0ms)"
+          ]
+        },
+        {
+          "stage": "10000 eps (30s)",
+          "target_rate_eps": 10000,
+          "achieved_throughput_eps": 10000,
+          "total_requests": 299999,
+          "avg_latency_ms": 0.31,
+          "p95_latency_ms": 0.64,
+          "p99_latency_ms": 3.73,
+          "max_latency_ms": 17.39,
+          "error_rate_pct": 0,
+          "status_distribution": {
+            "http_2xx": 299999
+          },
+          "flags": [
+            "latency instability (p99 4ms > 2x baseline 0ms)"
+          ]
+        },
+        {
+          "stage": "15000 eps (30s)",
+          "target_rate_eps": 15000,
+          "achieved_throughput_eps": 14999.7,
+          "total_requests": 449991,
+          "avg_latency_ms": 0.55,
+          "p95_latency_ms": 2.7,
+          "p99_latency_ms": 7.13,
+          "max_latency_ms": 26.51,
+          "error_rate_pct": 0,
+          "status_distribution": {
+            "http_2xx": 449990
+          },
+          "flags": [
+            "latency instability (p99 7ms > 2x baseline 0ms)"
+          ]
+        },
+        {
+          "stage": "20000 eps (30s)",
+          "target_rate_eps": 20000,
+          "achieved_throughput_eps": 19990.1,
+          "total_requests": 599704,
+          "avg_latency_ms": 1.65,
+          "p95_latency_ms": 8.22,
+          "p99_latency_ms": 17.95,
+          "max_latency_ms": 54.47,
+          "error_rate_pct": 0,
+          "status_distribution": {
+            "http_2xx": 599691
+          },
+          "flags": [
+            "latency instability (p99 18ms > 2x baseline 0ms)"
+          ]
+        },
+        {
+          "stage": "30000 eps (30s)",
+          "target_rate_eps": 30000,
+          "achieved_throughput_eps": 26618.3,
+          "total_requests": 798549,
+          "avg_latency_ms": 11.97,
+          "p95_latency_ms": 38.72,
+          "p99_latency_ms": 62.01,
+          "max_latency_ms": 198.42,
+          "error_rate_pct": 0,
+          "status_distribution": {
+            "http_2xx": 798541
+          },
+          "flags": [
+            "throughput shortfall (achieved 26618 < 28500 eps)",
+            "latency instability (p99 62ms > 2x baseline 0ms)"
+          ]
+        },
+        {
+          "stage": "40000 eps (30s)",
+          "target_rate_eps": 40000,
+          "achieved_throughput_eps": 27320.9,
+          "total_requests": 819626,
+          "avg_latency_ms": 13.5,
+          "p95_latency_ms": 46.88,
+          "p99_latency_ms": 67.42,
+          "max_latency_ms": 227.28,
+          "error_rate_pct": 0,
+          "status_distribution": {
+            "http_2xx": 819617
+          },
+          "flags": [
+            "throughput shortfall (achieved 27321 < 38000 eps)",
+            "latency instability (p99 67ms > 2x baseline 0ms)"
+          ]
+        },
+        {
+          "stage": "50000 eps (30s)",
+          "target_rate_eps": 50000,
+          "achieved_throughput_eps": 27752.5,
+          "total_requests": 832576,
+          "avg_latency_ms": 13.61,
+          "p95_latency_ms": 47.99,
+          "p99_latency_ms": 68.6,
+          "max_latency_ms": 203.05,
+          "error_rate_pct": 0,
+          "status_distribution": {
+            "http_2xx": 832573
+          },
+          "flags": [
+            "throughput shortfall (achieved 27753 < 47500 eps)",
+            "latency instability (p99 69ms > 2x baseline 0ms)"
+          ]
+        }
+      ]
+    },
+    "sustained": {
+      "test": "Sustained Load Test",
+      "generated_at": "2026-08-26T16:07:03.469Z",
+      "target_url": "http://localhost:8080/events/ingest",
+      "counters": {
+        "events_sent": 59999,
+        "events_accepted_http_2xx": 59999,
+        "total_http_requests": 59999,
+        "status_distribution_total": {
+          "http_2xx": 59999
+        }
+      },
+      "note": "events_accepted counts HTTP 2xx only (API-level acceptance for async processing). Downstream delivery and persistence must be verified externally: consumer-lag drain + storage object delta.",
+      "stages": [
+        {
+          "stage": "sustained",
+          "target_rate_eps": 1000,
+          "achieved_throughput_eps": 1000,
+          "total_requests": 59999,
+          "avg_latency_ms": 0.19,
+          "p95_latency_ms": 0.23,
+          "p99_latency_ms": 0.28,
+          "max_latency_ms": 2.58,
+          "error_rate_pct": 0,
+          "status_distribution": {
+            "http_2xx": 59999
+          },
+          "flags": []
+        }
+      ]
+    },
+    "burst": {
+      "test": "Burst Load Test",
+      "generated_at": "2026-08-26T16:09:13.927Z",
+      "target_url": "http://localhost:8080/events/ingest",
+      "counters": {
+        "events_sent": 289868,
+        "events_accepted_http_2xx": 289857,
+        "total_http_requests": 289857,
+        "status_distribution_total": {
+          "http_2xx": 289857
+        }
+      },
+      "note": "events_accepted counts HTTP 2xx only (API-level acceptance for async processing). Downstream delivery and persistence must be verified externally: consumer-lag drain + storage object delta.",
+      "stages": [
+        {
+          "stage": "baseline 1000 eps (30s)",
+          "target_rate_eps": 1000,
+          "achieved_throughput_eps": 1000,
+          "total_requests": 30000,
+          "avg_latency_ms": 0.19,
+          "p95_latency_ms": 0.23,
+          "p99_latency_ms": 0.27,
+          "max_latency_ms": 3.75,
+          "error_rate_pct": 0,
+          "status_distribution": {
+            "http_2xx": 30000
+          },
+          "flags": []
+        },
+        {
+          "stage": "BURST 20000 eps (10s)",
+          "target_rate_eps": 20000,
+          "achieved_throughput_eps": 19985.7,
+          "total_requests": 199857,
+          "avg_latency_ms": 2.33,
+          "p95_latency_ms": 10.39,
+          "p99_latency_ms": 19.77,
+          "max_latency_ms": 51,
+          "error_rate_pct": 0,
+          "status_distribution": {
+            "http_2xx": 199857
+          },
+          "flags": [
+            "latency instability (p99 20ms > 2x baseline 0ms)"
+          ]
+        },
+        {
+          "stage": "recovery 1000 eps (60s)",
+          "target_rate_eps": 1000,
+          "achieved_throughput_eps": 1000,
+          "total_requests": 60000,
+          "avg_latency_ms": 0.19,
+          "p95_latency_ms": 0.22,
+          "p99_latency_ms": 0.26,
+          "max_latency_ms": 4.38,
+          "error_rate_pct": 0,
+          "status_distribution": {
+            "http_2xx": 60000
+          },
+          "flags": []
+        }
+      ]
+    }
+  }
+}
