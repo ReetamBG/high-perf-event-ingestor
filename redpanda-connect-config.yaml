@@ -2,7 +2,7 @@ input:
   kafka:
     addresses:
       - ${BROKERS}
-    topics: ["events"]
+    topics: ["events", "events.dlq"]
     consumer_group: "s3-storage-sink-connector" # this refers to the consumer group id given to the pipe input, not the sink (s3 here)
 
 pipeline:

@@ -1,12 +1,13 @@
 package json_utils
 
 import (
-	"encoding/json"
 	"net/http"
+
+	"github.com/bytedance/sonic"
 )
 
 func Write(w http.ResponseWriter, statusCode int, content any) error {
-	data, err := json.Marshal(content)
+	data, err := sonic.Marshal(content)
 	if err != nil {
 		return err
 	}
@@ -20,5 +21,5 @@ func Write(w http.ResponseWriter, statusCode int, content any) error {
 }
 
 func ReadBody(r *http.Request, dest any) error {
-	return json.NewDecoder(r.Body).Decode(dest)
+	return sonic.ConfigDefault.NewDecoder(r.Body).Decode(dest)
 }

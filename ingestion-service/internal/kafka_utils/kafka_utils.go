@@ -23,6 +23,7 @@ type KafkaConfig struct {
 
 type Writer struct {
 	*kafka.Writer
+	DLQWriter *kafka.Writer
 
 	// for backpressure when kafka is full
 	Queue        chan kafka.Message
@@ -40,28 +41,42 @@ func NewWriter(config KafkaConfig) *Writer {
 		MaxAttempts:            config.MaxAttempts,
 		WriteTimeout:           config.WriteTimeout,
 
-		// async writes (allows for batch writes)
+		// async writes (allows for batch writes) - disabled as we handle it explicitly on our side now
 		// disabled as we are adding backpressure from our own side
 		// Async:        true,
 		// BatchSize:    config.BatchSize,
 		// BatchTimeout: config.BatchTimeout,
+
 		Async: false,
 
 		// Completion handles final Kafka write failures after all retries.
 		// Failed messages can be routed to the producer-side DLQ.
+		// purely kept for logging here - errors handled directly at write site
 		Completion: func(messages []kafka.Message, err error) {
 			if err != nil {
-				slog.Error("Async write to kafka broker failed after retries", "error", err, "messages", len(messages))
-
-				// TODO: send to DLQ here
-				// TODO: Use a different topic for this, connect sink connector input to this topic
+				slog.Error("Write to kafka broker failed after retries", "error", err, "messages", len(messages))
 			}
+		},
+	}
 
+	// DLQ with async writes - fire and forget
+	DLQWriter := &kafka.Writer{
+		Addr:                   kafka.TCP(config.Brokers...),
+		Balancer:               &kafka.LeastBytes{},
+		AllowAutoTopicCreation: config.AutoTopicCreation,
+		MaxAttempts:            config.MaxAttempts,
+		WriteTimeout:           config.WriteTimeout,
+		Async:                  true,
+		Completion: func(messages []kafka.Message, err error) {
+			if err != nil {
+				slog.Error("Write to DLQ failed after retries", "error", err, "messages", len(messages))
+			}
 		},
 	}
 
 	writer := &Writer{
 		Writer:       w,
+		DLQWriter:    DLQWriter,
 		Queue:        make(chan kafka.Message, config.QueueSize),
 		BatchSize:    config.BatchSize,
 		BatchTimeout: config.BatchTimeout,
@@ -99,7 +114,9 @@ func (w *Writer) drain() {
 		case msg, ok := <-w.Queue:
 			if !ok {
 				if len(batch) > 0 {
-					w.WriteMessages(context.Background(), batch...)
+					if err := w.WriteMessages(context.Background(), batch...); err != nil {
+						w.writeToDLQ(context.Background(), batch)
+					}
 				}
 				return
 			}
@@ -107,7 +124,9 @@ func (w *Writer) drain() {
 			batch = append(batch, msg)
 			// push them when batch fills
 			if len(batch) >= w.BatchSize {
-				w.WriteMessages(context.Background(), batch...)
+				if err := w.WriteMessages(context.Background(), batch...); err != nil {
+					w.writeToDLQ(context.Background(), batch)
+				}
 				batch = batch[:0]
 			}
 
@@ -115,7 +134,9 @@ func (w *Writer) drain() {
 		// essentially acts as BatchSize or BatchTimeout whichever occurs first
 		case <-ticker.C:
 			if len(batch) > 0 {
-				w.WriteMessages(context.Background(), batch...)
+				if err := w.WriteMessages(context.Background(), batch...); err != nil {
+					w.writeToDLQ(context.Background(), batch)
+				}
 				batch = batch[:0]
 			}
 		}
@@ -123,14 +144,32 @@ func (w *Writer) drain() {
 
 }
 
+func (w *Writer) writeToDLQ(ctx context.Context, messages []kafka.Message) {
+	for i := range messages {
+		messages[i].Topic = resolveDLQTopic(messages[i].Topic)
+	}
+	_ = w.DLQWriter.WriteMessages(ctx, messages...) // async write no need to handler err
+}
+
 func (w *Writer) CloseConnection() error {
 	close(w.Queue) // close the queue - will flush it
-	w.wg.Wait()
+	w.wg.Wait()    // wait for goroutines to return
 
-	err := w.Close() // close the writer after that
-	if err != nil {
-		slog.Error("failed to close writer", "Error: ", err)
+	// close the primary writer after that
+	if err := w.Close(); err != nil {
+		slog.Error("failed to close writer", "error", err)
+		return err
 	}
 
-	return err
+	// close the DLQ writer after that
+	if err := w.DLQWriter.Close(); err != nil {
+		slog.Error("failed to close DLQ writer", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func resolveDLQTopic(topic string) string {
+	return topic + ".dlq"
 }
