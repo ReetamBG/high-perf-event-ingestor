@@ -269,6 +269,71 @@ Results in `results/*.json` are flat, timestamped, per-stage structures —
 a future Prometheus/Grafana integration can read them without any rewrite
 of the test code.
 
+## 11. Full Benchmark
+
+Run the complete benchmark suite that orchestrates progressive → sustained → burst tests, collects CPU/memory metrics, takes storage baselines, and produces a combined JSON report with exact message persistence counts.
+
+### Usage
+
+```bash
+./scripts/run-full-benchmark.sh
+```
+
+### What it does
+
+The script runs three test phases in sequence:
+
+1. **Progressive test** — staged ramp from 1k to 20k events/second
+2. **Sustained test** — constant rate for a configured duration
+3. **Burst test** — baseline → high burst → recovery
+
+### Configuration
+
+The script reads these environment variables (from `.env` or passed inline):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `TARGET_URL` | `http://localhost:8080/events/ingest` | API endpoint under test |
+| `CONTAINER_NAME` | `ingestion-service` | For CPU/memory monitoring via `docker stats` |
+| `SAMPLE_INTERVAL` | `1` | Seconds between resource samples |
+| `DRAIN_TIMEOUT` | `180` | Max seconds to wait for downstream drain |
+| `DRAIN_POLL` | `5` | Seconds between drain stability checks |
+| `DRAIN_STABLE` | `3` | Consecutive stable checks before considering drained |
+
+Auto-loads `.env` values without clobbering existing environment variables.
+
+### Output
+
+The script produces these files in `results/`:
+
+- `full-benchmark-<timestamp>.json` — Combined report with:
+  - Per-phase test results (progressive, sustained, burst)
+  - CPU/memory metrics from `docker stats` (CSV format)
+  - Storage baseline and final counts
+  - Exact message persistence counts via `count-stored-messages.sh`
+  - `persistence_ratio` = `messages_persisted_exact` / `events_sent`
+  - `notes` field explaining the exact counting methodology
+- `full-benchmark-<timestamp>-resources.csv` — CPU/memory utilization CSV
+- Individual k6 logs: `results/k6-progressive-<timestamp>.log`, etc.
+
+### Recommended workflow
+
+```bash
+# terminal 1: start resource sampling (before test)
+CONTAINER_NAME=ingestion-service ./scripts/collect-container-metrics.sh
+
+# terminal 2: pre-test persistence snapshot
+./scripts/verify-storage.sh
+
+# terminal 3: run the full benchmark
+./scripts/run-full-benchmark.sh
+
+# afterwards: wait for drain, then re-check storage
+./scripts/verify-storage.sh --watch 5
+```
+
+Downloads in `count-stored-messages.sh` are saved to a temp dir under `results/` and cleaned up automatically.
+
 ## Notes & gotchas
 
 - Run k6 from inside `stress-test/` so `results/...` paths resolve.
