@@ -1,6 +1,6 @@
 # High-Performance Event Ingestor
 
-A high-throughput, fault-tolerant system for ingesting event data from clients to durable S3-compatible storage via Kafka/Redpanda and Redpanda Connect as a sink connector.
+A high-throughput, fault-tolerant system for ingesting event data from clients to durable S3-compatible storage via Kafka/Redpanda and Redpanda Connect.
 
 ## Architecture Overview
 
