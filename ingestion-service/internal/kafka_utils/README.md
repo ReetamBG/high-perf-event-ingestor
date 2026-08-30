@@ -2,7 +2,7 @@
                   HTTP requests
                        │
                        ▼
-                 TryWrite()
+                    Write()
                        │
               ┌────────┴────────┐
               │                 │
@@ -12,13 +12,15 @@
            channel             429
               │
               ▼
-        ┌─────────────┐
-        │ drain()     │
-        │             │
-        │ collect     │
-        │ up to 500   │
-        │ OR 10ms     │
-        └──────┬──────┘
+      ┌───────────────┐
+      │ drain()       │
+      │               │
+      │ collect       │
+      │ up to         │
+      │ BatchSize     │
+      │ OR            │
+      │ BatchTimeout  │
+      └────────┬──────┘
                │
                ▼
         WriteMessages()
