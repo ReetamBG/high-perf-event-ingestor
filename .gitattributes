@@ -1,0 +1,10 @@
+# Ignore all shell scripts from language statistics
+*.sh linguist-vendored=true
+scripts/* linguist-vendored=true
+
+# Ignore stress test directory (JS / k6 / Autocannon)
+stress-test/** linguist-vendored=true
+*.js linguist-vendored=true
+
+# Or explicitly mark them as non-detectable documentation/data
+# stress-test/** linguist-detectable=false
